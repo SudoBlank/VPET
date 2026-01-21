@@ -8,6 +8,8 @@ from ui.window import VPetWindow
 def main() -> None:
     """Initialize and run the virtual pet application."""
     pet = CatPet()
+    save_load_manager = SaveLoadManager()  # Initialize SaveLoadManager
+    saved_data = save_load_manager.load()  # Load existing data
     ai = AIChat()
     window = VPetWindow(pet, ai)
     window.run()

@@ -15,14 +15,24 @@ class ChatWindow:
 
     def __init__(self, pet: CatPet, ai: AIChat) -> None:
         self.pet = pet
+        self.current_sprite = self.sprites.get_sprite('walking')  # Set initial sprite
+        self.sprites = Sprites()  # Initialize sprites for animations
+        self.sprites = Sprites()  # Initialize sprites for animations
         self.ai = ai
 
         self.win = tk.Toplevel()
+        self.current_sprite = self.sprites.get_sprite('walking')  # Set initial sprite
         self.win.title(f"Talk to {pet.name}")
         self.win.geometry("400x500")
         self.win.attributes("-topmost", True)
 
         # Chat display
+
+    def on_drag(self):
+        self.current_sprite = self.sprites.get_sprite('picked_up')  # Change sprite when dragged
+
+    def on_sleep(self):
+        self.current_sprite = self.sprites.get_sprite('sleeping')  # Change sprite when sleeping
         self.text = tk.Text(self.win, state="disabled", wrap="word")
         self.text.pack(expand=True, fill="both", padx=5, pady=5)
 
@@ -30,9 +40,15 @@ class ChatWindow:
         self.entry = tk.Entry(self.win)
         self.entry.pack(fill="x", padx=5, pady=5)
         self.entry.bind("<Return>", self.send)
+        self.win.bind("<Button-3>", self.show_context_menu)  # Right-click for context menu
         self.entry.focus()
 
         # Welcome message
+
+    def show_context_menu(self, event):
+        menu = tk.Menu(self.win, tearoff=0)
+        menu.add_command(label="Sleep", command=self.on_sleep)
+        menu.post(event.x_root, event.y_root)  # Show menu at cursor position
         self.write(self.pet.name, f"Meow! I'm {self.pet.name}. What's up?")
 
     def write(self, who: str, msg: str) -> None:
