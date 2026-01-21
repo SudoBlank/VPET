@@ -1,0 +1,6 @@
+{
+  "openrouter_api_key": "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",
+  "model": "mistralai/mistral-7b-instruct",
+  "max_tokens": 200,
+  "temperature": 1.0
+}
