@@ -15,14 +15,6 @@ class Settings:
         self._settings: dict[str, Any] = self._load()
 
     def _load(self) -> dict[str, Any]:
-        # Load settings from JSON file
-        if self.config_path.exists():
-            try:
-                with open(self.config_path, 'r') as f:
-                    return json.load(f)
-            except json.JSONDecodeError:
-                print("Error decoding JSON, using default settings.")
-        return {}  # Return default settings if file doesn't exist
         """Load settings from JSON file."""
         if self.config_path.exists():
             try:

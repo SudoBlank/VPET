@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 from PIL import Image, ImageTk
 
 if TYPE_CHECKING:
-    from pets.cat import CatPet
+    from pets.base import VirtualPet
     from ai.chat import AIChat
 
 try:
@@ -53,12 +53,15 @@ class VPetWindow:
         )
         self.canvas.pack()
 
-        # Sprites
-        self.sprites: dict[str, ImageTk.PhotoImage] = {}
+        # Import Sprites class
+        from ui.sprites import Sprites
+        self.sprites_manager = Sprites(pet_type=pet.name.lower(), size=self.size)
+
+        # Current sprite
         self.current_sprite: ImageTk.PhotoImage | None = None
         self.sprite_id: int | None = None
+        self.is_dragging = False
 
-        self.load_sprites()
         self.update_sprite()
 
         # Dragging
@@ -66,12 +69,14 @@ class VPetWindow:
         self._drag_y = 0
         self.root.bind("<Button-1>", self.start_drag)
         self.root.bind("<B1-Motion>", self.drag)
+        self.root.bind("<ButtonRelease-1>", self.end_drag)
 
         # Right-click menu
         self.menu = tk.Menu(self.root, tearoff=0)
         self.menu.add_command(label="Talk", command=self.talk)
         self.menu.add_command(label="Feed", command=self.feed)
         self.menu.add_command(label="Play", command=self.play)
+        self.menu.add_command(label="Sleep", command=self.sleep)
         self.menu.add_separator()
         self.menu.add_command(label="Stats", command=self.show_stats)
         self.menu.add_command(label="Settings", command=self.open_settings)
@@ -90,21 +95,33 @@ class VPetWindow:
 
     def load_sprites(self) -> None:
         """Load and resize pet sprites."""
-        base = Path("assets/cats")
+        base = Path("assets") / f"{self.pet.name.lower()}s"
 
         def load(name: str) -> ImageTk.PhotoImage:
             img = Image.open(base / name).convert("RGBA")
             img = img.resize((self.size, self.size), Image.Resampling.LANCZOS)
             return ImageTk.PhotoImage(img)
 
-        self.sprites["happy"] = load("cat_happy.png")
-        self.sprites["sad"] = load("cat_sad.png")
-        self.sprites["angry"] = load("cat_angry.png")
+        # Try to load sprites, skip if files don't exist
+        try:
+            self.sprites_manager.load_sprite("happy", str(base / f"{self.pet.name.lower()}_happy.png"))
+            self.sprites_manager.load_sprite("sad", str(base / f"{self.pet.name.lower()}_sad.png"))
+            self.sprites_manager.load_sprite("angry", str(base / f"{self.pet.name.lower()}_angry.png"))
+        except Exception as e:
+            print(f"Could not load sprites: {e}")
 
     def update_sprite(self) -> None:
         """Update displayed sprite based on pet mood."""
         mood = self.pet.mood()
-        sprite = self.sprites.get(mood, self.sprites["happy"])
+        sprite = self.sprites_manager.get_sprite(mood)
+        
+        # Fallback to happy sprite if mood sprite not available
+        if sprite is None:
+            sprite = self.sprites_manager.get_sprite("happy")
+        
+        # Create placeholder if no sprite available
+        if sprite is None:
+            sprite = self._create_placeholder_sprite()
 
         if self.sprite_id:
             self.canvas.delete(self.sprite_id)
@@ -113,6 +130,11 @@ class VPetWindow:
         self.sprite_id = self.canvas.create_image(
             self.size // 2, self.size // 2, image=self.current_sprite
         )
+
+    def _create_placeholder_sprite(self) -> ImageTk.PhotoImage:
+        """Create a placeholder sprite when real sprites aren't available."""
+        img = Image.new("RGBA", (self.size, self.size), self.transparent_color)
+        return ImageTk.PhotoImage(img)
 
     def apply_settings(self) -> None:
         """Apply user settings to window."""
@@ -131,7 +153,7 @@ class VPetWindow:
         self.size = int(self.base_size * scale)
 
         self.canvas.config(width=self.size, height=self.size)
-        self.load_sprites()
+        self.sprites_manager.resize(self.size)
         self.update_sprite()
 
     def feed(self) -> None:
@@ -142,6 +164,11 @@ class VPetWindow:
     def play(self) -> None:
         """Play with the pet."""
         self.pet.play()
+        self.update_sprite()
+
+    def sleep(self) -> None:
+        """Make the pet sleep."""
+        self.pet.sleep()
         self.update_sprite()
 
     def talk(self) -> None:
@@ -165,38 +192,40 @@ class VPetWindow:
             messagebox.showerror("Error", f"Failed to open chat: {e}")
 
     def show_stats(self) -> None:
-        """Display pet statistics."""
+        """Display pet stats in a message box."""
         from tkinter import messagebox
 
-        messagebox.showinfo(
-            f"{self.pet.name} Stats",
-            f"Hunger: {self.pet.hunger}\n"
-            f"Happiness: {self.pet.happiness}\n"
-            f"Energy: {self.pet.energy}\n"
-            f"Mood: {self.pet.mood()}",
+        stats = (
+            f"{self.pet.name}'s Stats:\n\n"
+            f"Hunger: {self.pet.hunger:.0f}%\n"
+            f"Happiness: {self.pet.happiness:.0f}%\n"
+            f"Energy: {self.pet.energy:.0f}%\n"
+            f"Mood: {self.pet.mood()}\n"
+            f"Sleeping: {'Yes' if self.pet.is_sleeping else 'No'}"
         )
+        messagebox.showinfo("Pet Stats", stats)
 
     def open_settings(self) -> None:
         """Open settings window."""
-        from tkinter import messagebox
-        
         try:
-            from ui.settings_window import SettingsWindow
+            from ui.setings_window import SettingsWindow
             SettingsWindow(self)
-        except ImportError:
-            messagebox.showinfo("Settings", "Settings window not yet implemented.")
+        except Exception as e:
+            from tkinter import messagebox
+            messagebox.showerror("Error", f"Failed to open settings: {e}")
 
     def tick(self) -> None:
         """Update pet state periodically."""
         self.pet.tick()
         self.update_sprite()
 
-        interval = cast(int, self.settings.get("tick_interval_ms", 5000))
-        self.root.after(interval, self.tick)
+        tick_interval = cast(int, self.settings.get("tick_interval_ms", 5000))
+        self.root.after(tick_interval, self.tick)
 
     def idle_animation(self) -> None:
-        """Play idle bobbing animation."""
-        if not self.sprite_id:
+        """Idle animation (pet bobs up and down)."""
+        if not self.sprite_id or self.is_dragging:
+            self.root.after(4000, self.idle_animation)
             return
 
         self.canvas.move(self.sprite_id, 0, -2)
@@ -255,12 +284,23 @@ class VPetWindow:
         """Record drag start position."""
         self._drag_x = event.x
         self._drag_y = event.y
+        self.is_dragging = True
+        # Change sprite when picked up
+        picked_up = self.sprites_manager.get_sprite("picked_up")
+        if picked_up and self.sprite_id:
+            self.current_sprite = picked_up
+            self.canvas.itemconfig(self.sprite_id, image=self.current_sprite)
 
     def drag(self, event: tk.Event[Any]) -> None:
         """Move window during drag."""
         x = self.root.winfo_x() + event.x - self._drag_x
         y = self.root.winfo_y() + event.y - self._drag_y
         self.root.geometry(f"+{x}+{y}")
+
+    def end_drag(self, event: tk.Event[Any]) -> None:
+        """Handle end of drag."""
+        self.is_dragging = False
+        self.update_sprite()
 
     def show_menu(self, event: tk.Event[Any]) -> None:
         """Display right-click context menu."""

@@ -1,0 +1,9 @@
+{
+  "pet": {
+    "name": "Cat",
+    "hunger": 35.0,
+    "happiness": 69.5,
+    "energy": 48,
+    "is_sleeping": false
+  }
+}
