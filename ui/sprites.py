@@ -23,16 +23,21 @@ class Sprites:
 
     def load_default_sprites(self) -> None:
         """Load default sprites for the pet."""
-        sprite_files = {
-            "happy": f"{self.pet_type}_happy.png",
-            "sad": f"{self.pet_type}_sad.png",
-            "angry": f"{self.pet_type}_angry.png",
-            "sleeping": f"{self.pet_type}_sleeping.png",
-            "picked_up": f"{self.pet_type}_picked_up.png",
-        }
+        # All possible sprite states - some may not exist for all pets
+        sprite_states = [
+            "happy",
+            "sad",
+            "angry",
+            "shy",
+            "sleeping",
+            "picked_up",
+            "grabed",  # Alternate spelling
+            "tickling",
+            "walking",
+        ]
 
-        for state, filename in sprite_files.items():
-            filepath = self.asset_base / filename
+        for state in sprite_states:
+            filepath = self.asset_base / f"{self.pet_type}_{state}.png"
             if filepath.exists():
                 self.load_sprite(state, str(filepath))
 
@@ -76,3 +81,4 @@ class Sprites:
         self.size = new_size
         self.sprites.clear()
         self.load_default_sprites()
+

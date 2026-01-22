@@ -27,6 +27,7 @@ class Settings:
     def _get_defaults(self) -> dict[str, Any]:
         """Return default settings."""
         return {
+            "pet_type": "cat",  # Default pet: cat, dog, or anime_girl
             "pet_scale": 1.0,
             "always_on_top": True,
             "transparent": True,

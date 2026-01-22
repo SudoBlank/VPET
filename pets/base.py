@@ -61,14 +61,20 @@ class VirtualPet:
         """Get the pet's current mood.
         
         Returns:
-            Mood string: 'happy', 'sad', 'angry', or 'sleeping'
+            Mood string: 'happy', 'sad', 'angry', 'shy', 'tickling', 'walking', or 'sleeping'
         """
         if self.is_sleeping:
             return "sleeping"
+        if self.happiness > 80:
+            return "tickling"  # Very happy and playful
         if self.happiness > 70:
             return "happy"
-        if self.happiness < 30:
+        if self.happiness > 50 and self.energy > 60:
+            return "walking"  # Content and energetic
+        if self.happiness < 20:
             return "sad"
+        if self.happiness < 40:
+            return "shy"  # Somewhat unhappy
         if self.hunger > 80:
             return "angry"
         return "happy"

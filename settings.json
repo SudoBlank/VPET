@@ -1,0 +1,9 @@
+{
+  "pet_scale": 1.0,
+  "always_on_top": true,
+  "transparent": true,
+  "tick_interval_ms": 5000,
+  "roam_interval_ms": 30000,
+  "input_reaction": true,
+  "ai_enabled": true
+}

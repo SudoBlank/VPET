@@ -1,4 +1,4 @@
-"""Create placeholder sprites for all pets."""
+"""Create placeholder sprites for all pets with all emotion states."""
 
 from PIL import Image, ImageDraw
 from pathlib import Path
@@ -7,8 +7,8 @@ from pathlib import Path
 Path("assets/dogs").mkdir(parents=True, exist_ok=True)
 Path("assets/anime_girl").mkdir(parents=True, exist_ok=True)
 
-def create_placeholder_sprite(color, name, size=128):
-    """Create a simple colored square with text as placeholder sprite."""
+def create_placeholder_sprite(color, size=128):
+    """Create a simple colored circle as placeholder sprite."""
     img = Image.new("RGBA", (size, size), (255, 255, 255, 0))
     draw = ImageDraw.Draw(img)
     
@@ -17,36 +17,35 @@ def create_placeholder_sprite(color, name, size=128):
     
     return img
 
+# Emotion colors for consistency
+emotion_colors = {
+    "happy": (255, 200, 100, 255),      # Orange
+    "sad": (100, 150, 255, 255),        # Blue
+    "angry": (255, 100, 100, 255),      # Red
+    "shy": (200, 100, 200, 255),        # Purple
+    "sleeping": (150, 200, 255, 255),   # Light Blue
+    "picked_up": (255, 255, 100, 255),  # Yellow
+    "grabed": (255, 255, 100, 255),     # Yellow (same as picked_up)
+    "tickling": (255, 150, 200, 255),   # Pink
+    "walking": (150, 255, 150, 255),    # Green
+}
+
 # Create dog sprites
-dog_happy = create_placeholder_sprite((255, 200, 100, 255), "Dog Happy")
-dog_happy.save("assets/dogs/dog_happy.png")
-
-dog_sad = create_placeholder_sprite((200, 150, 100, 255), "Dog Sad")
-dog_sad.save("assets/dogs/dog_sad.png")
-
-dog_angry = create_placeholder_sprite((255, 100, 100, 255), "Dog Angry")
-dog_angry.save("assets/dogs/dog_angry.png")
-
-dog_sleeping = create_placeholder_sprite((150, 200, 255, 255), "Dog Sleep")
-dog_sleeping.save("assets/dogs/dog_sleeping.png")
-
-dog_picked = create_placeholder_sprite((255, 255, 100, 255), "Dog Picked")
-dog_picked.save("assets/dogs/dog_picked_up.png")
+print("Creating dog sprites...")
+for emotion, color in emotion_colors.items():
+    img = create_placeholder_sprite(color)
+    filepath = f"assets/dogs/dog_{emotion}.png"
+    img.save(filepath)
+    print(f"  Created {filepath}")
 
 # Create anime_girl sprites
-anime_happy = create_placeholder_sprite((255, 150, 200, 255), "Anime Happy")
-anime_happy.save("assets/anime_girl/anime_girl_happy.png")
+print("Creating anime_girl sprites...")
+for emotion, color in emotion_colors.items():
+    img = create_placeholder_sprite(color)
+    filepath = f"assets/anime_girl/anime_girl_{emotion}.png"
+    img.save(filepath)
+    print(f"  Created {filepath}")
 
-anime_sad = create_placeholder_sprite((200, 100, 150, 255), "Anime Sad")
-anime_sad.save("assets/anime_girl/anime_girl_sad.png")
+print("\nSprite creation complete!")
+print("Note: These are placeholder sprites. Replace them with actual artwork.")
 
-anime_angry = create_placeholder_sprite((255, 100, 150, 255), "Anime Angry")
-anime_angry.save("assets/anime_girl/anime_girl_angry.png")
-
-anime_sleeping = create_placeholder_sprite((150, 150, 255, 255), "Anime Sleep")
-anime_sleeping.save("assets/anime_girl/anime_girl_sleeping.png")
-
-anime_picked = create_placeholder_sprite((255, 200, 200, 255), "Anime Picked")
-anime_picked.save("assets/anime_girl/anime_girl_picked_up.png")
-
-print("✓ Created all placeholder sprites!")

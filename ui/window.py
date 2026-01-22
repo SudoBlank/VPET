@@ -25,10 +25,10 @@ except ImportError:
 class VPetWindow:
     """Virtual pet window with sprite rendering and interaction."""
 
-    def __init__(self, pet: CatPet, ai: AIChat | None = None) -> None:
+    def __init__(self, pet: VirtualPet, ai: AIChat | None = None, settings: Settings | None = None) -> None:
         self.pet = pet
         self.ai = ai
-        self.settings = Settings()
+        self.settings = settings if settings is not None else Settings()
 
         # Window setup
         self.root = tk.Tk()
