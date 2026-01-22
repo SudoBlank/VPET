@@ -50,6 +50,8 @@ class Sprites:
         """
         try:
             img = Image.open(filepath).convert("RGBA")
+            # Ensure consistent size - pad or crop as needed
+            img = self._normalize_sprite_size(img)
             img = img.resize((self.size, self.size), Image.Resampling.LANCZOS)
             self.sprites[state] = ImageTk.PhotoImage(img)
         except RuntimeError as e:
@@ -60,6 +62,30 @@ class Sprites:
             print(f"Failed to load sprite {filepath}: {e}")
         except Exception as e:
             print(f"Failed to load sprite {filepath}: {e}")
+
+    def _normalize_sprite_size(self, img: Image.Image) -> Image.Image:
+        """Normalize sprite to square format by padding if needed.
+        
+        Args:
+            img: PIL Image to normalize
+            
+        Returns:
+            Normalized square image
+        """
+        width, height = img.size
+        max_dim = max(width, height)
+        
+        # If already square, return as-is
+        if width == height:
+            return img
+        
+        # Create square canvas and center the image
+        square_img = Image.new("RGBA", (max_dim, max_dim), (0, 0, 0, 0))
+        offset_x = (max_dim - width) // 2
+        offset_y = (max_dim - height) // 2
+        square_img.paste(img, (offset_x, offset_y), img)
+        
+        return square_img
 
     def get_sprite(self, state: str) -> Optional[ImageTk.PhotoImage]:
         """Get sprite for a given state.

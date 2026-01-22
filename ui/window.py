@@ -6,20 +6,11 @@ from typing import TYPE_CHECKING, Any, cast
 
 from PIL import Image, ImageTk
 
+from settings.manager import Settings
+
 if TYPE_CHECKING:
     from pets.base import VirtualPet
     from ai.chat import AIChat
-
-try:
-    from settings.manager import Settings
-except ImportError:
-    # Fallback if Settings doesn't exist
-    class Settings:
-        def __init__(self) -> None:
-            self._settings: dict[str, Any] = {}
-        
-        def get(self, key: str, default: Any = None) -> Any:
-            return self._settings.get(key, default)
 
 
 class VPetWindow:
@@ -296,6 +287,12 @@ class VPetWindow:
         """Smoothly animate window movement to target position."""
         if steps <= 0:
             return
+
+        # Show walking sprite during animation
+        walking = self.sprites_manager.get_sprite("walking")
+        if walking and self.sprite_id and not self.is_dragging:
+            self.current_sprite = walking
+            self.canvas.itemconfig(self.sprite_id, image=self.current_sprite)
 
         # Calculate incremental movement
         delta_x = (end_x - start_x) / steps
