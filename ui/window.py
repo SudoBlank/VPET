@@ -111,9 +111,23 @@ class VPetWindow:
             print(f"Could not load sprites: {e}")
 
     def update_sprite(self) -> None:
-        """Update displayed sprite based on pet mood."""
-        mood = self.pet.mood()
-        sprite = self.sprites_manager.get_sprite(mood)
+        """Update displayed sprite based on pet mood and state."""
+        # Determine which sprite to show based on state
+        if self.is_dragging:
+            # Try to show grabbed sprite (with typo first as that's what exists)
+            sprite = self.sprites_manager.get_sprite("grabed")
+            if not sprite:
+                sprite = self.sprites_manager.get_sprite("grabbed")
+            if not sprite:
+                sprite = self.sprites_manager.get_sprite("picked_up")
+        elif getattr(self.pet, 'is_eating', False):
+            # Show eating sprite
+            sprite = self.sprites_manager.get_sprite("picked_up")
+        elif self.pet.is_sleeping:
+            sprite = self.sprites_manager.get_sprite("sleeping")
+        else:
+            mood = self.pet.mood()
+            sprite = self.sprites_manager.get_sprite(mood)
         
         # Fallback to happy sprite if mood sprite not available
         if sprite is None:
@@ -157,17 +171,24 @@ class VPetWindow:
         self.update_sprite()
 
     def feed(self) -> None:
-        """Feed the pet."""
+        """Feed the pet (shows eating animation)."""
         self.pet.feed()
+        self.pet.is_eating = True
+        self.pet.eat_timer = 3  # 3 ticks = eating duration
         self.update_sprite()
+        # After eating, become shy
+        self.root.after(3000, self.update_sprite)
 
     def play(self) -> None:
-        """Play with the pet."""
+        """Play with the pet (tickling)."""
         self.pet.play()
+        # Show tickling sprite immediately
         self.update_sprite()
+        # Revert after a moment to show happiness transition
+        self.root.after(500, self.update_sprite)
 
     def sleep(self) -> None:
-        """Make the pet sleep."""
+        """Make the pet sleep or wake it up."""
         self.pet.sleep()
         self.update_sprite()
 
@@ -223,18 +244,28 @@ class VPetWindow:
         self.root.after(tick_interval, self.tick)
 
     def idle_animation(self) -> None:
-        """Idle animation (pet bobs up and down)."""
-        if not self.sprite_id or self.is_dragging:
-            self.root.after(4000, self.idle_animation)
+        """Idle animation (pet bobs up and down) - smoother animation."""
+        if not self.sprite_id or self.is_dragging or self.pet.is_sleeping or getattr(self.pet, 'is_eating', False):
+            self.root.after(2000, self.idle_animation)  # Check more frequently
             return
 
-        self.canvas.move(self.sprite_id, 0, -2)
-        self.root.after(150, lambda: self.canvas.move(self.sprite_id, 0, 2))
-        self.root.after(4000, self.idle_animation)
+        # Smooth bobbing animation (multiple small movements)
+        for i in range(1, 4):
+            self.root.after(50 * i, lambda i=i: self.canvas.move(self.sprite_id, 0, -1) if self.sprite_id else None)
+        for i in range(1, 4):
+            self.root.after(50 * (3 + i), lambda i=i: self.canvas.move(self.sprite_id, 0, 1) if self.sprite_id else None)
+        
+        self.root.after(3500, self.idle_animation)
 
     def roam_around(self) -> None:
         """Make pet roam around the screen periodically (mostly horizontal movement)."""
         import random
+
+        # Don't roam while sleeping, eating, dragging, or talking
+        if self.pet.is_sleeping or self.is_dragging or getattr(self.pet, 'is_eating', False):
+            roam_interval = cast(int, self.settings.get("roam_interval_ms", 30000))
+            self.root.after(roam_interval, self.roam_around)
+            return
 
         # Get screen dimensions
         screen_width = self.root.winfo_screenwidth()
@@ -285,10 +316,15 @@ class VPetWindow:
         self._drag_x = event.x
         self._drag_y = event.y
         self.is_dragging = True
-        # Change sprite when picked up
-        picked_up = self.sprites_manager.get_sprite("picked_up")
-        if picked_up and self.sprite_id:
-            self.current_sprite = picked_up
+        self.pet.is_sleeping = False  # Wake up when grabbed
+        # Change sprite when picked up (try grabbed first)
+        grabbed = self.sprites_manager.get_sprite("grabed")  # Try with typo first
+        if not grabbed:
+            grabbed = self.sprites_manager.get_sprite("grabbed")  # Try correct spelling
+        if not grabbed:
+            grabbed = self.sprites_manager.get_sprite("picked_up")  # Fallback
+        if grabbed and self.sprite_id:
+            self.current_sprite = grabbed
             self.canvas.itemconfig(self.sprite_id, image=self.current_sprite)
 
     def drag(self, event: tk.Event[Any]) -> None:

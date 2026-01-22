@@ -18,9 +18,19 @@ class VirtualPet:
         self.happiness = 50
         self.energy = 50
         self.is_sleeping = False
+        self.is_eating = False
+        self.eat_timer = 0  # Frames left while eating
 
     def tick(self) -> None:
         """Update pet state each tick."""
+        # Handle eating timer
+        if self.is_eating:
+            self.eat_timer -= 1
+            if self.eat_timer <= 0:
+                self.is_eating = False
+                # After eating, become shy for a moment
+                self.happiness -= 5
+        
         if self.is_sleeping:
             # Gain energy when sleeping
             self.energy = min(100, self.energy + 2)
@@ -38,20 +48,21 @@ class VirtualPet:
 
     def feed(self) -> None:
         """Feed the pet."""
+        self.is_sleeping = False
         self.hunger = max(0, self.hunger - 20)
         self.happiness += 5
-        self.is_sleeping = False
+        self.is_eating = True  # Trigger eating animation
 
     def play(self) -> None:
-        """Play with the pet."""
-        if not self.is_sleeping:
-            self.happiness += 10
-            self.energy -= 5
-            self.hunger += 3
+        """Play with the pet (tickling)."""
+        self.is_sleeping = False
+        self.happiness += 10
+        self.energy -= 5
+        self.hunger += 3
 
     def sleep(self) -> None:
-        """Make the pet sleep."""
-        self.is_sleeping = True
+        """Make the pet sleep or wake up if already sleeping."""
+        self.is_sleeping = not self.is_sleeping
 
     def wake_up(self) -> None:
         """Wake the pet up."""
@@ -87,6 +98,7 @@ class VirtualPet:
             "happiness": self.happiness,
             "energy": self.energy,
             "is_sleeping": self.is_sleeping,
+            "is_eating": self.is_eating,
         }
 
     def from_dict(self, data: dict) -> None:
@@ -95,3 +107,4 @@ class VirtualPet:
         self.happiness = data.get("happiness", 50)
         self.energy = data.get("energy", 50)
         self.is_sleeping = data.get("is_sleeping", False)
+        self.is_eating = data.get("is_eating", False)

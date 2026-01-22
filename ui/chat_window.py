@@ -68,6 +68,8 @@ class ChatWindow:
 
         def run() -> None:
             """Run async AI chat in background thread."""
+            error_msg = None
+            reply = None
             try:
                 reply = asyncio.run(
                     self.ai.ask(
@@ -78,13 +80,18 @@ class ChatWindow:
                             "happiness": self.pet.happiness,
                             "energy": self.pet.energy,
                             "mood": self.pet.mood(),
+                            "sleeping": self.pet.is_sleeping,
                         },
                     )
                 )
-                # Schedule GUI update in main thread
-                self.win.after(0, lambda: self._show_reply(reply))
             except Exception as e:
-                self.win.after(0, lambda: self._show_reply(f"*meow?* (Error: {e})"))
+                error_msg = str(e)
+            
+            # Schedule GUI update in main thread
+            if error_msg:
+                self.win.after(0, lambda msg=error_msg: self._show_reply(f"*meow?* (Error: {msg})"))
+            else:
+                self.win.after(0, lambda reply_text=reply: self._show_reply(reply_text))
 
         threading.Thread(target=run, daemon=True).start()
 
