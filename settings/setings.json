@@ -3,12 +3,11 @@
   "transparent": true,
   "pet_scale": 1.0,
   "tick_interval_ms": 5000,
-
   "ai_enabled": true,
   "auto_talk": false,
   "auto_talk_interval": 120,
-
   "input_reaction": true,
   "input_reaction_strength": 4,
-  "show_input_counter": false
+  "show_input_counter": false,
+  "pet_type": "cat"
 }
