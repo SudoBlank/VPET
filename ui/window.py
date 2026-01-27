@@ -90,7 +90,7 @@ class VPetWindow:
             self._setup_voice_listener()
         except Exception as e:
             print(f"Voice system initialization failed: {e}")
-            print("Voice features will be disabled. Install pyaudio for full voice support.")
+            print("Voice features will be disabled. Install sounddevice for full voice support.")
             self.voice_manager = None
             self.keyboard_listener = None
             self.is_voice_listening = False
@@ -361,10 +361,8 @@ class VPetWindow:
             return
         
         try:
-            self.keyboard_listener = KeyboardListener()
+            self.keyboard_listener = KeyboardListener(self._on_voice_key_pressed)
             if self.keyboard_listener and self.keyboard_listener.listener:
-                self.keyboard_listener.on_key_pressed = self._on_voice_key_pressed
-                self.keyboard_listener.on_key_released = self._on_voice_key_released
                 self.keyboard_listener.start()
         except Exception as e:
             print(f"Could not setup voice listener: {e}")
