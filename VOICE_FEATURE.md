@@ -8,22 +8,58 @@ The VPET application now includes a press-to-hold voice interaction system where
 
 ## Installation
 
-### Step 1: Install Required Packages
-The voice feature requires additional Python packages. Run this command in your terminal:
+### Optional Installation (Voice Features)
+Voice features are **optional**. The app runs fine without them, but voice input/output won't be available.
+
+### Step 1: Install Required Packages (Optional)
+To enable voice features, install the voice packages:
 
 ```bash
-pip install SpeechRecognition edge-tts pynput
+pip install SpeechRecognition pynput
 ```
+
+For full voice support with PyAudio (microphone input):
+```bash
+pip install pyaudio
+```
+
+**Note:** PyAudio can be tricky to install on Windows. If you skip it, voice input won't work but you can still use the chat feature.
 
 Or install from requirements.txt:
 ```bash
 pip install -r requirements.txt
 ```
 
+### Step 2: Verify Installation (Optional)
+Test voice features in Python:
+```python
+python -c "import speech_recognition; print('Speech Recognition OK')"
+python -c "import edge_tts; print('Edge TTS OK')"
+python -c "import pynput; print('Pynput OK')"
+```
+
+If any fail, that feature won't be available but app will still run.
+
 ### What Each Package Does:
 - **SpeechRecognition**: Converts your voice to text using Google's speech API (free, no key needed)
 - **edge-tts**: Microsoft's text-to-speech engine with Japanese voice support (free)
 - **pynput**: Monitors keyboard globally to detect Alt+V keybind
+- **PyAudio**: (Optional) Low-level audio input - required for microphone recording
+
+## Graceful Degradation
+
+The app is designed to work with or without voice features:
+
+✅ **App runs without voice packages** - Core functionality works  
+✅ **Voice input disabled if PyAudio missing** - Shows message in console  
+✅ **Voice output disabled if edge-tts missing** - Shows message in console  
+✅ **Keyboard listener fails gracefully** - App continues without hotkey  
+
+If any voice component is missing:
+- Settings still show voice option
+- Voice toggle can be checked but won't work
+- Console shows which features are disabled
+- App continues running normally without voice
 
 ## How to Use
 
