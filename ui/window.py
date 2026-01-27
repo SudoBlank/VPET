@@ -80,13 +80,20 @@ class VPetWindow:
         # Apply settings
         self.apply_settings()
 
-        # Voice system
-        self.voice_manager = VoiceManager()
-        self.keyboard_listener: KeyboardListener | None = None
-        self.is_voice_listening = False
-        
-        # Setup keyboard listener for voice
-        self._setup_voice_listener()
+        # Voice system (gracefully handle if voice dependencies not installed)
+        try:
+            self.voice_manager = VoiceManager()
+            self.keyboard_listener: KeyboardListener | None = None
+            self.is_voice_listening = False
+            
+            # Setup keyboard listener for voice
+            self._setup_voice_listener()
+        except Exception as e:
+            print(f"Voice system initialization failed: {e}")
+            print("Voice features will be disabled. Install pyaudio for full voice support.")
+            self.voice_manager = None
+            self.keyboard_listener = None
+            self.is_voice_listening = False
 
         # Start loops
         self.tick()
@@ -350,6 +357,9 @@ class VPetWindow:
 
     def _setup_voice_listener(self) -> None:
         """Setup keyboard listener for voice input."""
+        if not self.voice_manager:
+            return
+        
         try:
             self.keyboard_listener = KeyboardListener()
             if self.keyboard_listener and self.keyboard_listener.listener:
@@ -358,10 +368,11 @@ class VPetWindow:
                 self.keyboard_listener.start()
         except Exception as e:
             print(f"Could not setup voice listener: {e}")
+            self.keyboard_listener = None
 
     def _on_voice_key_pressed(self) -> None:
         """Handle voice key press (start listening)."""
-        if self.is_voice_listening or not cast(bool, self.settings.get("voice_enabled", True)):
+        if not self.voice_manager or self.is_voice_listening or not cast(bool, self.settings.get("voice_enabled", True)):
             return
         
         self.is_voice_listening = True
@@ -372,7 +383,7 @@ class VPetWindow:
     
     def _on_voice_key_released(self) -> None:
         """Handle voice key release (stop listening and process)."""
-        if not self.is_voice_listening:
+        if not self.voice_manager or not self.is_voice_listening:
             return
         
         self.is_voice_listening = False
@@ -402,7 +413,7 @@ class VPetWindow:
         Args:
             text: User's spoken message
         """
-        if self.ai is None:
+        if self.ai is None or not self.voice_manager:
             return
 
         import threading
@@ -442,5 +453,12 @@ class VPetWindow:
         finally:
             # Cleanup
             if self.keyboard_listener:
-                self.keyboard_listener.stop()
-            self.voice_manager.cleanup()
+                try:
+                    self.keyboard_listener.stop()
+                except Exception:
+                    pass
+            if self.voice_manager:
+                try:
+                    self.voice_manager.cleanup()
+                except Exception:
+                    pass

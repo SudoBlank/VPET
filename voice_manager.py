@@ -28,11 +28,43 @@ class VoiceManager:
 
     def __init__(self) -> None:
         """Initialize voice manager."""
-        self.recognizer = sr.Recognizer() if sr else None
-        self.microphone = sr.Microphone() if sr else None
+        self.recognizer: Optional[Any] = None
+        self.microphone: Optional[Any] = None
         self.is_listening = False
         self.voice_thread: Optional[threading.Thread] = None
         self.audio_file = Path("temp_voice.mp3")
+        self._initialized = False
+        
+    def _lazy_init(self) -> bool:
+        """Lazily initialize voice components when first needed.
+        
+        Returns:
+            True if initialization successful, False otherwise
+        """
+        if self._initialized:
+            return self.recognizer is not None
+        
+        self._initialized = True
+        
+        try:
+            if not sr:
+                print("SpeechRecognition not installed. Voice features disabled.")
+                return False
+            
+            self.recognizer = sr.Recognizer()
+            
+            # Try to initialize microphone (may fail if PyAudio not installed)
+            try:
+                self.microphone = sr.Microphone()
+            except AttributeError as e:
+                print(f"PyAudio not installed. Voice input disabled: {e}")
+                print("Install with: pip install pyaudio")
+                return False
+            
+            return True
+        except Exception as e:
+            print(f"Voice initialization error: {e}")
+            return False
 
     def transcribe_audio(self) -> Optional[str]:
         """Transcribe audio from microphone to text.
@@ -40,7 +72,7 @@ class VoiceManager:
         Returns:
             Transcribed text or None if failed
         """
-        if not self.recognizer or not self.microphone:
+        if not self._lazy_init():
             return None
 
         try:
@@ -144,6 +176,10 @@ class VoiceManager:
             on_text_received: Callback function to handle transcribed text
             duration: Max duration to listen (seconds)
         """
+        if not self._lazy_init():
+            on_text_received("[voice system not initialized]")
+            return
+        
         def listen_thread() -> None:
             try:
                 # Set timeout for listening
