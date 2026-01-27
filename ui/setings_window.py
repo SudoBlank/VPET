@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -49,7 +49,7 @@ class SettingsWindow:
                 command=self.on_pet_change
             ).pack(anchor="w")
         
-        tk.Separator(self.win, orient="horizontal").pack(fill="x", pady=5)
+        ttk.Separator(self.win, orient="horizontal").pack(fill="x", pady=5)
 
         self.always_on_top = tk.BooleanVar(
             value=self.settings.get("always_on_top", True)
@@ -127,7 +127,7 @@ class SettingsWindow:
         self.roam_scale.set(self.settings.get("roam_interval_ms", 30000) / 1000)
         self.roam_scale.pack(fill="x", padx=5)
 
-        tk.Separator(self.win, orient="horizontal").pack(fill="x", pady=10)
+        ttk.Separator(self.win, orient="horizontal").pack(fill="x", pady=10)
 
         tk.Button(self.win, text="Reset Pet Stats", command=self.reset_pet, bg="#FFE6E6").pack(
             fill="x", padx=5, pady=5
