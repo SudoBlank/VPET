@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 from PIL import Image, ImageTk
 
 from settings.manager import Settings
+from voice_manager import VoiceManager, KeyboardListener
 
 if TYPE_CHECKING:
     from pets.base import VirtualPet
@@ -78,6 +79,14 @@ class VPetWindow:
 
         # Apply settings
         self.apply_settings()
+
+        # Voice system
+        self.voice_manager = VoiceManager()
+        self.keyboard_listener: KeyboardListener | None = None
+        self.is_voice_listening = False
+        
+        # Setup keyboard listener for voice
+        self._setup_voice_listener()
 
         # Start loops
         self.tick()
@@ -339,6 +348,99 @@ class VPetWindow:
         """Display right-click context menu."""
         self.menu.tk_popup(event.x_root, event.y_root)
 
+    def _setup_voice_listener(self) -> None:
+        """Setup keyboard listener for voice input."""
+        try:
+            self.keyboard_listener = KeyboardListener()
+            if self.keyboard_listener and self.keyboard_listener.listener:
+                self.keyboard_listener.on_key_pressed = self._on_voice_key_pressed
+                self.keyboard_listener.on_key_released = self._on_voice_key_released
+                self.keyboard_listener.start()
+        except Exception as e:
+            print(f"Could not setup voice listener: {e}")
+
+    def _on_voice_key_pressed(self) -> None:
+        """Handle voice key press (start listening)."""
+        if self.is_voice_listening or not cast(bool, self.settings.get("voice_enabled", True)):
+            return
+        
+        self.is_voice_listening = True
+        
+        # Show visual feedback
+        if self.sprite_id:
+            self.canvas.itemconfig(self.sprite_id, outline="yellow", width=2)
+    
+    def _on_voice_key_released(self) -> None:
+        """Handle voice key release (stop listening and process)."""
+        if not self.is_voice_listening:
+            return
+        
+        self.is_voice_listening = False
+        
+        # Remove visual feedback
+        if self.sprite_id:
+            self.canvas.itemconfig(self.sprite_id, outline="", width=0)
+        
+        # Transcribe in background
+        self.voice_manager.listen_for_voice(self._on_voice_transcribed)
+
+    def _on_voice_transcribed(self, text: str) -> None:
+        """Handle transcribed voice text.
+        
+        Args:
+            text: Transcribed text from user
+        """
+        if not text or text.startswith("["):
+            return  # Error or unintelligible
+        
+        # Send to AI and get response
+        self._send_voice_message(text)
+
+    def _send_voice_message(self, text: str) -> None:
+        """Send voice message to AI and get spoken response.
+        
+        Args:
+            text: User's spoken message
+        """
+        if self.ai is None:
+            return
+
+        import threading
+        
+        def process_voice() -> None:
+            try:
+                import asyncio
+                
+                # Get AI response
+                reply = asyncio.run(
+                    self.ai.ask(
+                        self.pet.personality,
+                        text,
+                        {
+                            "hunger": self.pet.hunger,
+                            "happiness": self.pet.happiness,
+                            "energy": self.pet.energy,
+                            "mood": self.pet.mood(),
+                            "sleeping": self.pet.is_sleeping,
+                        },
+                    )
+                )
+                
+                # Speak response in Japanese female voice
+                self.voice_manager.speak_text(reply)
+            except Exception as e:
+                print(f"Voice message error: {e}")
+        
+        # Process in background thread
+        thread = threading.Thread(target=process_voice, daemon=True)
+        thread.start()
+
     def run(self) -> None:
         """Start the main event loop."""
-        self.root.mainloop()
+        try:
+            self.root.mainloop()
+        finally:
+            # Cleanup
+            if self.keyboard_listener:
+                self.keyboard_listener.stop()
+            self.voice_manager.cleanup()

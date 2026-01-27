@@ -25,6 +25,7 @@ class SettingsWindow:
         self.scale: tk.Scale
         self.input_reaction: tk.BooleanVar
         self.ai_enabled: tk.BooleanVar
+        self.voice_enabled: tk.BooleanVar
         self.roam_scale: tk.Scale
         self.pet_type_var: tk.StringVar
 
@@ -98,6 +99,22 @@ class SettingsWindow:
             command=self.apply,
         ).pack(anchor="w", padx=5)
 
+        self.voice_enabled = tk.BooleanVar(value=self.settings.get("voice_enabled", True))
+        tk.Checkbutton(
+            self.win,
+            text="Enable voice input (Alt+V to hold and speak)",
+            variable=self.voice_enabled,
+            command=self.apply,
+        ).pack(anchor="w", padx=5)
+
+        tk.Label(self.win, text="Voice Settings", font=("Arial", 9, "bold")).pack(anchor="w", padx=5, pady=(10, 5))
+        tk.Label(
+            self.win, 
+            text="• Press Alt+V and hold to record\n• Release to send\n• Pet responds in Japanese voice",
+            font=("Arial", 8),
+            justify="left"
+        ).pack(anchor="w", padx=5, pady=5)
+
         tk.Label(self.win, text="Roaming frequency (seconds)", font=("Arial", 10, "bold")).pack(anchor="w", padx=5, pady=(10, 0))
         self.roam_scale = tk.Scale(
             self.win,
@@ -141,6 +158,7 @@ class SettingsWindow:
         self.settings.set("transparent", self.transparent.get())
         self.settings.set("input_reaction", self.input_reaction.get())
         self.settings.set("ai_enabled", self.ai_enabled.get())
+        self.settings.set("voice_enabled", self.voice_enabled.get())
 
         self.vpet.apply_settings()
 

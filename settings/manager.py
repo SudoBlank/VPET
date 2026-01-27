@@ -33,6 +33,10 @@ class Settings:
             "transparent": True,
             "tick_interval_ms": 5000,
             "roam_interval_ms": 30000,  # Roam every 30 seconds
+            "input_reaction": True,
+            "ai_enabled": True,
+            "voice_enabled": True,
+            "voice_keybind": "alt+v",  # Default voice input keybind
         }
 
     def save(self) -> None:

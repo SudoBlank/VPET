@@ -1,0 +1,13 @@
+# Virtual Pet Application Requirements
+
+# Core dependencies
+Pillow>=9.0.0
+httpx>=0.24.0
+
+# Voice interaction (optional - install for voice features)
+SpeechRecognition>=3.10.0
+edge-tts>=6.1.0
+pynput>=1.7.0
+
+# Settings and UI
+python-dotenv>=0.21.0
