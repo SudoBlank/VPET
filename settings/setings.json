@@ -9,5 +9,6 @@
   "input_reaction": true,
   "input_reaction_strength": 4,
   "show_input_counter": false,
-  "pet_type": "cat"
+  "pet_type": "cat",
+  "roam_interval_ms": 30000
 }

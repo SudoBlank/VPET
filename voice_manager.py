@@ -5,7 +5,7 @@ import threading
 import subprocess
 import os
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Any
 
 try:
     import speech_recognition as sr
@@ -27,181 +27,108 @@ class VoiceManager:
     """Manage voice input and output for the pet."""
 
     def __init__(self) -> None:
-        """Initialize voice manager."""
         self.recognizer: Optional[Any] = None
         self.microphone: Optional[Any] = None
-        self.is_listening = False
         self.voice_thread: Optional[threading.Thread] = None
         self.audio_file = Path("temp_voice.mp3")
         self._initialized = False
-        
+
     def _lazy_init(self) -> bool:
-        """Lazily initialize voice components when first needed.
-        
-        Returns:
-            True if initialization successful, False otherwise
-        """
         if self._initialized:
-            return self.recognizer is not None
-        
+            return self.recognizer is not None and self.microphone is not None
+
         self._initialized = True
-        
+
+        if not sr:
+            print("SpeechRecognition not installed.")
+            return False
+
         try:
-            if not sr:
-                print("SpeechRecognition not installed. Voice features disabled.")
-                return False
-            
             self.recognizer = sr.Recognizer()
-            
-            # Try to initialize microphone (may fail if PyAudio not installed)
-            try:
-                self.microphone = sr.Microphone()
-            except AttributeError as e:
-                print(f"PyAudio not installed. Voice input disabled: {e}")
-                print("Install with: pip install pyaudio")
-                return False
-            
+            self.microphone = sr.Microphone()
             return True
         except Exception as e:
-            print(f"Voice initialization error: {e}")
+            print(f"Voice init failed: {e}")
             return False
 
     def transcribe_audio(self) -> Optional[str]:
-        """Transcribe audio from microphone to text.
-        
-        Returns:
-            Transcribed text or None if failed
-        """
         if not self._lazy_init():
+            return None
+
+        if self.recognizer is None or self.microphone is None:
             return None
 
         try:
             with self.microphone as source:
                 self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
                 audio = self.recognizer.listen(source, timeout=10)
-            
-            # Use Google Speech Recognition (free, no API key needed)
-            text = self.recognizer.recognize_google(audio)
-            return text
-        except sr.UnknownValueError:
-            return None  # Could not understand audio
-        except sr.RequestError as e:
-            print(f"Speech recognition error: {e}")
-            return None
-        except Exception as e:
-            print(f"Voice transcription error: {e}")
+
+            return self.recognizer.recognize_google(audio)
+        except Exception:
             return None
 
-    async def synthesize_speech(self, text: str, language: str = "en") -> bool:
-        """Convert text to speech in Japanese female voice.
-        
-        Args:
-            text: Text to convert to speech
-            language: Language code (e.g., 'en', 'ja')
-            
-        Returns:
-            True if successful, False otherwise
-        """
+    async def synthesize_speech(self, text: str) -> bool:
         if not edge_tts:
-            print("edge-tts not installed")
             return False
 
         try:
-            # Japanese female voice (young sounding)
-            # Using ja-JP-NanaNeural which is a younger sounding female voice
             voice = "ja-JP-NanaNeural"
-            
-            # But speak the content in the requested language
-            # We'll use a Japanese voice but it can handle English/other languages
-            communicate = edge_tts.Communicate(text, voice, rate="+10%", pitch="+15Hz")
-            
+            communicate = edge_tts.Communicate(text, voice)
             await communicate.save(str(self.audio_file))
             return True
-        except Exception as e:
-            print(f"Text-to-speech error: {e}")
+        except Exception:
             return False
 
     def play_audio(self) -> bool:
-        """Play the generated audio file.
-        
-        Returns:
-            True if successful, False otherwise
-        """
         if not self.audio_file.exists():
             return False
 
         try:
-            # Use Windows media player or PowerShell to play audio
-            if os.name == 'nt':  # Windows
-                # Use PowerShell to play the audio file
+            if os.name == "nt":
                 subprocess.Popen([
-                    'powershell', '-Command',
-                    f'(New-Object System.Media.SoundPlayer "{str(self.audio_file)}").PlaySync()'
+                    "powershell",
+                    "-Command",
+                    f'(New-Object System.Media.SoundPlayer "{self.audio_file}").PlaySync()'
                 ])
-                return True
-            else:  # Linux/Mac
-                subprocess.Popen(['ffplay', '-nodisp', '-autoexit', str(self.audio_file)])
-                return True
-        except Exception as e:
-            print(f"Audio playback error: {e}")
+            else:
+                subprocess.Popen(["ffplay", "-nodisp", "-autoexit", str(self.audio_file)])
+            return True
+        except Exception:
             return False
 
     def speak_text(self, text: str) -> bool:
-        """Convert text to speech and play it.
-        
-        Args:
-            text: Text to speak
-            
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            # Run async TTS in a thread
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            success = loop.run_until_complete(self.synthesize_speech(text))
-            loop.close()
-            
-            if success:
-                return self.play_audio()
-            return False
-        except Exception as e:
-            print(f"Speak error: {e}")
-            return False
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success = loop.run_until_complete(self.synthesize_speech(text))
+        loop.close()
+        return success and self.play_audio()
 
-    def listen_for_voice(self, on_text_received: Callable[[str], None], duration: float = 5.0) -> None:
-        """Listen for voice input in background thread.
-        
-        Args:
-            on_text_received: Callback function to handle transcribed text
-            duration: Max duration to listen (seconds)
-        """
+    def listen_for_voice(
+        self,
+        on_text_received: Callable[[str], None],
+        duration: float = 5.0
+    ) -> None:
         if not self._lazy_init():
-            on_text_received("[voice system not initialized]")
+            on_text_received("[voice unavailable]")
             return
-        
-        def listen_thread() -> None:
+
+        if self.recognizer is None or self.microphone is None:
+            on_text_received("[voice unavailable]")
+            return
+
+        def listen() -> None:
             try:
-                # Set timeout for listening
-                if self.recognizer and self.microphone:
-                    with self.microphone as source:
-                        self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
-                        audio = self.recognizer.listen(source, timeout=int(duration))
-                    
-                    text = self.recognizer.recognize_google(audio)
-                    on_text_received(text)
-            except sr.UnknownValueError:
-                on_text_received("[unintelligible]")
-            except sr.RequestError as e:
-                on_text_received(f"[error: {e}]")
+                with self.microphone as source:
+                    self.recognizer.adjust_for_ambient_noise(source, 0.5)
+                    audio = self.recognizer.listen(source, timeout=int(duration))
+                on_text_received(self.recognizer.recognize_google(audio))
             except Exception as e:
                 on_text_received(f"[error: {e}]")
 
-        self.voice_thread = threading.Thread(target=listen_thread, daemon=True)
+        self.voice_thread = threading.Thread(target=listen, daemon=True)
         self.voice_thread.start()
 
     def cleanup(self) -> None:
-        """Clean up voice resources."""
         if self.audio_file.exists():
             try:
                 self.audio_file.unlink()
@@ -210,64 +137,26 @@ class VoiceManager:
 
 
 class KeyboardListener:
-    """Listen for keyboard events to trigger voice recording."""
-
-    def __init__(self, keybind: str = "<alt>v") -> None:
-        """Initialize keyboard listener.
-        
-        Args:
-            keybind: Key combination to listen for (e.g., '<alt>v')
-        """
+    def __init__(self) -> None:
         if not keyboard:
             self.listener = None
             return
 
-        self.keybind = keybind
-        self.key_down = False
-        self.on_key_pressed: Optional[Callable[[], None]] = None
-        self.on_key_released: Optional[Callable[[], None]] = None
-        
         self.listener = keyboard.Listener(
             on_press=self._on_press,
             on_release=self._on_release
         )
 
     def start(self) -> None:
-        """Start listening for keyboard events."""
         if self.listener:
             self.listener.start()
 
     def stop(self) -> None:
-        """Stop listening for keyboard events."""
         if self.listener:
             self.listener.stop()
 
-    def _on_press(self, key: keyboard.Key | keyboard.KeyCode) -> None:
-        """Handle key press."""
-        try:
-            # Check if Alt+V is pressed
-            if hasattr(key, 'vk') and key.vk == 86:  # 'V' key
-                # Check if Alt is pressed
-                alt_pressed = False
-                try:
-                    alt_pressed = keyboard.Controller().is_pressed(keyboard.Key.alt)
-                except:
-                    pass
-                
-                if alt_pressed and not self.key_down:
-                    self.key_down = True
-                    if self.on_key_pressed:
-                        self.on_key_pressed()
-        except:
-            pass
+    def _on_press(self, key) -> None:
+        pass
 
-    def _on_release(self, key: keyboard.Key | keyboard.KeyCode) -> None:
-        """Handle key release."""
-        try:
-            if hasattr(key, 'vk') and key.vk == 86:  # 'V' key
-                if self.key_down:
-                    self.key_down = False
-                    if self.on_key_released:
-                        self.on_key_released()
-        except:
-            pass
+    def _on_release(self, key) -> None:
+        pass
