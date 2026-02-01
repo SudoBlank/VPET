@@ -374,24 +374,26 @@ class VPetWindow:
             return
         
         self.is_voice_listening = True
+        print("🎤 Voice listening started - speak now...")
         
         # Show visual feedback
         if self.sprite_id:
             self.canvas.itemconfig(self.sprite_id, outline="yellow", width=2)
+        
+        # Start listening immediately
+        self.voice_manager.listen_for_voice(self._on_voice_transcribed, duration=5.0)
     
     def _on_voice_key_released(self) -> None:
-        """Handle voice key release (stop listening and process)."""
+        """Handle voice key release (stop listening)."""
         if not self.voice_manager or not self.is_voice_listening:
             return
         
         self.is_voice_listening = False
+        print("🎤 Voice listening stopped")
         
         # Remove visual feedback
         if self.sprite_id:
             self.canvas.itemconfig(self.sprite_id, outline="", width=0)
-        
-        # Transcribe in background
-        self.voice_manager.listen_for_voice(self._on_voice_transcribed)
 
     def _on_voice_transcribed(self, text: str) -> None:
         """Handle transcribed voice text.
@@ -399,9 +401,15 @@ class VPetWindow:
         Args:
             text: Transcribed text from user
         """
-        if not text or text.startswith("["):
-            return  # Error or unintelligible
+        if not text:
+            print("❌ No text transcribed")
+            return
         
+        if text.startswith("[") or text.startswith("❌"):
+            print(f"⚠️  Transcription error: {text}")
+            return
+        
+        print(f"✓ Transcribed: {text}")
         # Send to AI and get response
         self._send_voice_message(text)
 
@@ -412,35 +420,58 @@ class VPetWindow:
             text: User's spoken message
         """
         if self.ai is None or not self.voice_manager:
+            print("❌ AI or Voice Manager not available")
             return
 
         import threading
+        import asyncio
         
         def process_voice() -> None:
             try:
-                import asyncio
+                print(f"📤 Sending to AI: {text}")
                 
-                # Get AI response
-                reply = asyncio.run(
-                    self.ai.ask(
-                        self.pet.personality,
-                        text,
-                        {
-                            "hunger": self.pet.hunger,
-                            "happiness": self.pet.happiness,
-                            "energy": self.pet.energy,
-                            "mood": self.pet.mood(),
-                            "sleeping": self.pet.is_sleeping,
-                        },
+                # Create a new event loop for this thread
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                try:
+                    # Get AI response with proper async handling
+                    reply = loop.run_until_complete(
+                        self.ai.ask(
+                            self.pet.personality,
+                            text,
+                            {
+                                "hunger": self.pet.hunger,
+                                "happiness": self.pet.happiness,
+                                "energy": self.pet.energy,
+                                "mood": self.pet.mood(),
+                                "sleeping": self.pet.is_sleeping,
+                            },
+                        )
                     )
-                )
+                finally:
+                    loop.close()
                 
-                # Speak response in Japanese female voice
-                self.voice_manager.speak_text(reply)
+                if not reply:
+                    print("❌ AI returned empty response")
+                    return
+                
+                print(f"✓ AI Response: {reply}")
+                print(f"\n💬 Pet says: {reply}\n")
+                
+                # Speak response in cute young female English voice
+                success = self.voice_manager.speak_text(reply)
+                if success:
+                    print("✓ Response spoken successfully")
+                else:
+                    print("⚠️  Failed to speak response")
             except Exception as e:
-                print(f"Voice message error: {e}")
+                print(f"❌ Voice message error: {type(e).__name__}: {e}")
+                import traceback
+                traceback.print_exc()
         
         # Process in background thread
+        print("⏳ Processing voice response...")
         thread = threading.Thread(target=process_voice, daemon=True)
         thread.start()
 

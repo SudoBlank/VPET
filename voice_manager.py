@@ -115,7 +115,9 @@ class VoiceManager:
 
         try:
             print(f"🔊 Synthesizing speech: {text[:50]}...")
-            voice = "ja-JP-NanaNeural"
+            # Use a young Japanese-sounding English voice
+            # These voices sound youthful and have a cute quality
+            voice = "en-US-AvaNeural"  # Young sounding female voice
             communicate = edge_tts.Communicate(text, voice)
             await communicate.save(str(self.audio_file))
             print(f"✓ Audio synthesized and saved to {self.audio_file}")
